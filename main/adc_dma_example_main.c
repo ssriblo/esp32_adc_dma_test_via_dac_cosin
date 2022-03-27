@@ -60,6 +60,8 @@ static adc_channel_t channel[1] = {ADC1_CHANNEL_7};
 
 static const char *TAG = "ADC DMA";
 
+uint32_t freq_khz = 2000;
+
 static void continuous_adc_init(uint16_t adc1_chan_mask, uint16_t adc2_chan_mask, adc_channel_t *channel, uint8_t channel_num)
 {
     adc_digi_init_config_t adc_dma_config = {
@@ -73,7 +75,8 @@ static void continuous_adc_init(uint16_t adc1_chan_mask, uint16_t adc2_chan_mask
     adc_digi_configuration_t dig_cfg = {
         .conv_limit_en = ADC_CONV_LIMIT_EN,
         .conv_limit_num = 250,
-        .sample_freq_hz = 2000 * 1000,
+        // .sample_freq_hz = 2000 * 1000, // 2000000 is maximum value, not more!
+        .sample_freq_hz = freq_khz * 1000,
         .conv_mode = ADC_CONV_MODE,
         .format = ADC_OUTPUT_TYPE,
     };
@@ -110,7 +113,7 @@ static bool check_valid_data(const adc_digi_output_data_t *data)
 }
 #endif
 
-void app_main(void)
+void app_main_adc()
 {
     esp_err_t ret;
     uint32_t ret_num = 0;
@@ -161,7 +164,8 @@ void app_main(void)
     #if CONFIG_IDF_TARGET_ESP32
 
                 // ESP_LOGI(TAG, "Unit: %d, Channel: %d, Value: %x", 1, p->type1.channel, p->type1.data);
-                ESP_LOGI(TAG, "i=%d Value_Hex: %x Value_Dec= %d ", i, p->type1.data, p->type1.data);
+
+                // ESP_LOGI(TAG, "i=%d Value_Hex: %x Value_Dec= %d ", i, p->type1.data, p->type1.data);
 
     #else
                 if (ADC_CONV_MODE == ADC_CONV_BOTH_UNIT || ADC_CONV_MODE == ADC_CONV_ALTER_UNIT) {
@@ -197,4 +201,9 @@ void app_main(void)
     adc_digi_stop();
     ret = adc_digi_deinitialize();
     assert(ret == ESP_OK);
+}
+
+void app_main(){
+    app_main_adc();
+        
 }
