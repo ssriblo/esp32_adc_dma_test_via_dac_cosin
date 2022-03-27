@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/home/me20/esp/adc_dma_example/build/CMakeFiles/bootloader
+/home/me20/esp/adc_dma_example/build/CMakeFiles/bootloader.rule
+/home/me20/esp/adc_dma_example/build/CMakeFiles/bootloader-complete.rule
+/home/me20/esp/adc_dma_example/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/home/me20/esp/adc_dma_example/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/home/me20/esp/adc_dma_example/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/home/me20/esp/adc_dma_example/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/home/me20/esp/adc_dma_example/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/home/me20/esp/adc_dma_example/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/home/me20/esp/adc_dma_example/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
