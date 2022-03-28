@@ -58,6 +58,8 @@ static uint16_t adc2_chan_mask = 0;
 static adc_channel_t channel[1] = {ADC1_CHANNEL_7};
 #endif
 
+void gpio_ini(int pin);
+
 static const char *TAG = "ADC DMA";
 
 uint32_t freq_khz = 2000;
@@ -102,18 +104,26 @@ static void continuous_adc_init(uint16_t adc1_chan_mask, uint16_t adc2_chan_mask
 
 }
 
-#if !CONFIG_IDF_TARGET_ESP32
-static bool check_valid_data(const adc_digi_output_data_t *data)
+
+// requirement is nanoseconds
+// https://github.com/eerimoq/simba/issues/155
+static int sys_port_get_time_into_tick()
 {
-    const unsigned int unit = data->type2.unit;
-    if (unit > 2) return false;
-    if (data->type2.channel >= SOC_ADC_CHANNEL_NUM(unit)) return false;
+    // get clock count
+    // http://sub.nanona.fi/esp8266/timing-and-ticks.html
+    uint32_t ccount;
+    __asm__ __volatile__("esync; rsr %0,ccount":"=a" (ccount));
 
-    return true;
+
+    // get nanos
+    // from https://github.com/adafruit/ESP8266-Arduino/blob/50122289a3ecb7cddcba34db9ec9ec8b4d7e7442/hardware/esp8266com/esp8266/cores/esp8266/Esp.h#L129
+    // system_get_cpu_freq() returns 80 or 160; unit MHz
+    ccount /= ets_get_cpu_frequency(); // (freq_MHz*1000000) Hz = 1/second // Get the real CPU ticks per us to the ets.
+    
+    return ccount;
 }
-#endif
 
-void app_main_adc()
+void IRAM_ATTR app_main_adc()
 {
     esp_err_t ret;
     uint32_t ret_num = 0;
@@ -124,20 +134,41 @@ void app_main_adc()
 
     continuous_adc_init(adc1_chan_mask, adc2_chan_mask, channel, sizeof(channel) / sizeof(adc_channel_t));
 
+    int t1 = portGET_RUN_TIME_COUNTER_VALUE();
+    int t11 = sys_port_get_time_into_tick();
+    uint64_t t_start = esp_timer_get_time();
+    ets_delay_us(25); // just for test, not used
+    __asm__ __volatile__ ("nop");
+
+    uint64_t t_end = esp_timer_get_time();
+    int t22 = sys_port_get_time_into_tick();
+    int t2 = portGET_RUN_TIME_COUNTER_VALUE();
+    gpio_ini(GPIO_NUM_14);
+
     adc_digi_start();
 
     uint64_t start = esp_timer_get_time();
     uint64_t start2 = esp_timer_get_time();
+    int t33 = sys_port_get_time_into_tick();
+    int t3 = portGET_RUN_TIME_COUNTER_VALUE();
 
-    ets_delay_us(5); // just for test, not used
+    for(int i=0; i<100; i++){
+        GPIO.out_w1ts = (1 << GPIO_NUM_14);
+        GPIO.out_w1tc = (1 << GPIO_NUM_14);
+    }
 
     // while(1) 
     {
         ret = adc_digi_read_bytes(result, TIMES, &ret_num, ADC_MAX_DELAY);
 
         uint64_t end = esp_timer_get_time();
+        int t44 = sys_port_get_time_into_tick();
+        int t4 = portGET_RUN_TIME_COUNTER_VALUE();
+
         printf("TIME took %llu microseconds ret number= %d\n", (end - start), ret_num);
         printf("TIME2 took %llu microseconds ret number= %d\n", (end - start2), ret_num);
+        printf("us=%llu \n", t_end-t_start);
+        printf("tt= %d %d %d %u\n", t22-t11, t44-t33, t4-t3, ets_get_cpu_frequency());
 
         if (ret == ESP_OK || ret == ESP_ERR_INVALID_STATE) {
             if (ret == ESP_ERR_INVALID_STATE) {
@@ -203,7 +234,48 @@ void app_main_adc()
     assert(ret == ESP_OK);
 }
 
+void gpio_ini(int pin){
+    //zero-initialize the config sructure.
+    gpio_config_t io_conf = {};
+    //disable interrupt
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    //set as output mode
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    //bit mask of the pins that you want to set,e.g.GPIO18/19
+    io_conf.pin_bit_mask = (1ULL<<GPIO_NUM_14);
+    //disable pull-down mode
+    io_conf.pull_down_en = 0;
+    //disable pull-up mode
+    io_conf.pull_up_en = 0;
+    //configure GPIO with the given settings
+    gpio_config(&io_conf);
+}
+
+void gpio_max_speed_test(){
+    gpio_ini(GPIO_NUM_14);
+    // int cnt = 0;
+    // while(1) {
+    //     printf("cnt: %d\n", cnt++);
+    //     vTaskDelay(1000 / portTICK_RATE_MS);
+    //     gpio_set_level(GPIO_NUM_14, cnt % 2);
+    // }
+    while (1)   
+    {
+        for(int i=0; i<10; i++){
+            GPIO.out_w1ts = (1 << GPIO_NUM_14);
+            // __asm__ __volatile__("nop;nop;nop;nop;nop;nop;nop;"); // Bug workaround (I found this snippet somewhere in this forum)
+
+            GPIO.out_w1tc = (1 << GPIO_NUM_14);
+            // __asm__ __volatile__("nop;nop;nop;nop;nop;nop;nop;");
+        }
+        vTaskDelay(1000 / portTICK_RATE_MS);
+    }
+}
+
 void app_main(){
-    app_main_adc();
-        
+#ifdef GPIO_MAX_SPEED_TEST
+    gpio_max_speed_test();
+#else    
+    app_main_adc();       
+#endif    
 }
